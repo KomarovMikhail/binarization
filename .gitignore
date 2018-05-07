@@ -2,3 +2,4 @@ a.out
 cmake-build-debug
 CMakeLists.txt
 Image.h.gch
+.idea/
