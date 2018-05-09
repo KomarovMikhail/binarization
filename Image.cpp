@@ -1,20 +1,25 @@
-//
-// Created by michael on 24.04.18.
-//
-
 #include <cstdio>
 #include <iostream>
 #include <cstdlib>
 #include "Image.h"
+#include <cmath>
 
 Image::Image() {
     method = "luminosity";
     blockLength = 0;
+    useDeviation = false;
 }
 
 Image::Image(unsigned long d) {
     method = "luminosity";
     blockLength = d;
+    useDeviation = false;
+}
+
+Image::Image(unsigned long d, bool deviation) {
+    method = "luminosity";
+    blockLength = d;
+    useDeviation = deviation;
 }
 
 Image::~Image() {}
@@ -99,11 +104,29 @@ unsigned long Image::getPixelCount(unsigned long corner){
     }
 }
 
+unsigned long Image::calculateDeviation(unsigned long corner, long mean) {
+    unsigned long result = 0;
+    for (unsigned long i = 0; i < width - corner % width && i < blockLength; i++) {
+        for (unsigned long j = 0; j < height - corner / width && j < blockLength; j++) {
+            result += std::abs(mean - (long)intensityVector[corner + i + j * width]);
+        }
+    }
+    return result;
+}
+
 int Image::otsuThreshold(unsigned long corner) {
 
     std::vector<int> hist = calculateHist(corner);
     unsigned long sum = calculateIntensitySum(corner);
     unsigned long pixelCount = getPixelCount(corner);
+
+    if (useDeviation) {
+        long mean = sum / pixelCount;
+        unsigned long deviation = calculateDeviation(corner, mean);
+        if (deviation < 180000) {
+            return 128;
+        }
+    }
 
     int bestThresh = 0;
     double bestSigma = 0.0;
@@ -136,14 +159,6 @@ int Image::otsuThreshold(unsigned long corner) {
 }
 
 void Image::getBinValues(int threshold, unsigned long corner) {
-//    for (int i = 0; i < width * height * 3; i++) {
-//        if (pixels[i] < threshold) {
-//            pixels[i] = 0;
-//        }
-//        else {
-//            pixels[i] = 255;
-//        }
-//    }
     for (unsigned long i = 0; i < width - corner % width && i < blockLength; i++) {
         for (unsigned long j = 0; j < height - corner / width && j < blockLength; j++) {
             if (intensityVector[corner + i + j * width] < threshold) {
@@ -226,7 +241,6 @@ void Image::readJPEG(const char *path) {
 }
 
 void Image::writeJPEG(int quality, const char* path) {
-    /* Compress to JPEG */
     auto *scr=(char*)malloc(width*height*3* sizeof(char));
     for (int i = 0; i < width*height*3; i++) {
         scr[i] = pixels[i];

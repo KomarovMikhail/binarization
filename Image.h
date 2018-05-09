@@ -1,7 +1,3 @@
-//
-// Created by michael on 24.04.18.
-//
-
 #ifndef BINARIZATION_IMAGE_H
 #define BINARIZATION_IMAGE_H
 
@@ -17,6 +13,7 @@ class Image {
     unsigned long width, height, blockLength;
     std::vector<unsigned char> pixels;
     const int intensity = 256;
+    bool useDeviation;
 
     /* Method, used to convert color image to gray scale
      * "lightness", "average", "luminosity"
@@ -34,10 +31,12 @@ class Image {
     int otsuThreshold(unsigned long corner);
     void getBinValues(int threshold, unsigned long corner);
     unsigned long getPixelCount(unsigned long corner);
+    unsigned long calculateDeviation(unsigned long corner, long mean);
 
 public:
     explicit Image();
     explicit Image(unsigned long d);
+    explicit Image(unsigned long d, bool deviation);
     ~Image();
 
     void readJPEG(const char *path);
