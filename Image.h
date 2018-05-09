@@ -14,7 +14,7 @@ extern "C"
 }
 
 class Image {
-    unsigned long width, height;
+    unsigned long width, height, blockLength;
     std::vector<unsigned char> pixels;
     const int intensity = 256;
 
@@ -22,18 +22,22 @@ class Image {
      * "lightness", "average", "luminosity"
      * default: "luminosity" */
     std::string method;
+    std::vector<int> intensityVector;
+    std::vector<int> binValues;
 
     int toGray(int red, int green, int blue);
-    std::vector<int> getIntensityGrayVector();
-    std::vector<int> calculateHist(const std::vector<int>& intensityVector);
-    unsigned long calculateIntensitySum(const std::vector<int>& intensityVector);
-    void convertToGray(std::vector<int> grayValues);
-    void convertToBin(std::vector<int> binValues);
-    int otsuThreshold();
-    void binarize(int threshold);
+    void getIntensityGrayVector();
+    std::vector<int> calculateHist(unsigned long corner);
+    unsigned long calculateIntensitySum(unsigned long corner);
+    void convertToGray();
+    void convertToBin();
+    int otsuThreshold(unsigned long corner);
+    void getBinValues(int threshold, unsigned long corner);
+    unsigned long getPixelCount(unsigned long corner);
 
 public:
     explicit Image();
+    explicit Image(unsigned long d);
     ~Image();
 
     void readJPEG(const char *path);

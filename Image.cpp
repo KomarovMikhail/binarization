@@ -9,6 +9,12 @@
 
 Image::Image() {
     method = "luminosity";
+    blockLength = 0;
+}
+
+Image::Image(unsigned long d) {
+    method = "luminosity";
+    blockLength = d;
 }
 
 Image::~Image() {}
@@ -30,26 +36,24 @@ int Image::toGray(int red, int green, int blue) {
     }
 }
 
-std::vector<int> Image::getIntensityGrayVector() {
-    std::vector<int> result;
+void Image::getIntensityGrayVector() {
     for (int i = 0; i < pixels.size(); i += 3) {
-        result.push_back(toGray((int)pixels[i], (int)pixels[i+1], (int)pixels[i+2]));
+        intensityVector.push_back(toGray((int)pixels[i], (int)pixels[i+1], (int)pixels[i+2]));
     }
-    return result;
 }
 
-void Image::convertToGray(std::vector<int> grayValues) {
-    if (grayValues.size() * 3 != pixels.size()) {
+void Image::convertToGray() {
+    if (intensityVector.size() * 3 != pixels.size()) {
         throw std::invalid_argument("Wrong array size\n");
     }
-    for (int i = 0; i < grayValues.size(); i++) {
-        pixels[3 * i] = (unsigned char)grayValues[i];
-        pixels[3 * i + 1] = (unsigned char)grayValues[i];
-        pixels[3 * i + 2] = (unsigned char)grayValues[i];
+    for (int i = 0; i < intensityVector.size(); i++) {
+        pixels[3 * i] = (unsigned char)intensityVector[i];
+        pixels[3 * i + 1] = (unsigned char)intensityVector[i];
+        pixels[3 * i + 2] = (unsigned char)intensityVector[i];
     }
 }
 
-void Image::convertToBin(std::vector<int> binValues) {
+void Image::convertToBin() {
     if (binValues.size() * 3 != pixels.size()) {
         throw std::invalid_argument("Wrong array size\n");
     }
@@ -60,30 +64,46 @@ void Image::convertToBin(std::vector<int> binValues) {
     }
 }
 
-std::vector<int> Image::calculateHist(const std::vector<int>& intensityVector) {
+std::vector<int> Image::calculateHist(unsigned long corner) {
     std::vector<int> result(intensity, 0);
-    for (int i = 0; i < intensityVector.size(); i++) {
-        result[intensityVector[i]]++;
+    for (unsigned long i = 0; i < width - corner % width && i < blockLength; i++) {
+        for (unsigned long j = 0; j < height - corner / width && j < blockLength; j++) {
+            result[intensityVector[corner + i + j * width]]++;
+        }
     }
     return result;
 }
 
-unsigned long Image::calculateIntensitySum(const std::vector<int>& intensityVector) {
+unsigned long Image::calculateIntensitySum(unsigned long corner) {
     unsigned long result = 0;
-    for (int i = 0; i < intensityVector.size(); i++) {
-        result += intensityVector[i];
+    for (unsigned long i = 0; i < width - corner % width && i < blockLength; i++) {
+        for (unsigned long j = 0; j < height - corner / width && j < blockLength; j++) {
+            result += intensityVector[corner + i + j * width];
+        }
     }
     return result;
 }
 
-int Image::otsuThreshold() {
-    std::vector<int> gray = getIntensityGrayVector();
+unsigned long Image::getPixelCount(unsigned long corner){
+    if (width - corner % width < blockLength && height - corner / width < blockLength) {
+        return (width - corner % width) * (height - corner / width);
+    }
+    if (width - corner % width >= blockLength && height - corner / width < blockLength) {
+        return blockLength * (height - corner / width);
+    }
+    if (width - corner % width < blockLength && height - corner / width >= blockLength) {
+        return (width - corner % width) * blockLength;
+    }
+    if (width - corner % width >= blockLength && height - corner / width >= blockLength) {
+        return blockLength * blockLength;
+    }
+}
 
-    convertToGray(gray);
+int Image::otsuThreshold(unsigned long corner) {
 
-    std::vector<int> hist = calculateHist(gray);
-    unsigned long sum = calculateIntensitySum(gray);
-    unsigned long pixelCount = width * height;
+    std::vector<int> hist = calculateHist(corner);
+    unsigned long sum = calculateIntensitySum(corner);
+    unsigned long pixelCount = getPixelCount(corner);
 
     int bestThresh = 0;
     double bestSigma = 0.0;
@@ -115,20 +135,48 @@ int Image::otsuThreshold() {
     return bestThresh;
 }
 
-void Image::binarize(int threshold) {
-    for (int i = 0; i < width * height * 3; i++) {
-        if (pixels[i] < threshold) {
-            pixels[i] = 0;
-        }
-        else {
-            pixels[i] = 255;
+void Image::getBinValues(int threshold, unsigned long corner) {
+//    for (int i = 0; i < width * height * 3; i++) {
+//        if (pixels[i] < threshold) {
+//            pixels[i] = 0;
+//        }
+//        else {
+//            pixels[i] = 255;
+//        }
+//    }
+    for (unsigned long i = 0; i < width - corner % width && i < blockLength; i++) {
+        for (unsigned long j = 0; j < height - corner / width && j < blockLength; j++) {
+            if (intensityVector[corner + i + j * width] < threshold) {
+                binValues[corner + i + j * width] = 0;
+            }
+            else {
+                binValues[corner + i + j * width] = 1;
+            }
         }
     }
 }
 
 void Image::runOtsu() {
-    int threshold = otsuThreshold();
-    binarize(threshold);
+    getIntensityGrayVector();
+    convertToGray();
+    binValues.resize(height * width);
+
+    int threshold;
+    if (blockLength == 0) {
+        blockLength = std::max(width, height);
+        threshold = otsuThreshold(0);
+        getBinValues(threshold, 0);
+    }
+    else {
+        for (int i = 0; i < width; i += blockLength) {
+            for (int j = 0; j < height; j += blockLength) {
+                unsigned long corner = i + j * width;
+                threshold = otsuThreshold(corner);
+                getBinValues(threshold, corner);
+            }
+        }
+    }
+    convertToBin();
 }
 
 void Image::readJPEG(const char *path) {
