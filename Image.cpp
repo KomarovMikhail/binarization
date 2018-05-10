@@ -281,3 +281,7 @@ void Image::writeJPEG(int quality, const char* path) {
 
     free(scr);
 }
+
+unsigned long Image::getSize() {
+    return height * width;
+}

@@ -43,6 +43,7 @@ public:
     void writeJPEG(int quality, const char* path);
     void setMethod(const char* method);
     void runOtsu();
+    unsigned long getSize();
 };
 
 #endif //BINARIZATION_IMAGE_H
